@@ -12,6 +12,8 @@ class LMDBWrapper
         std::string get(const std::string& key);
         int put(const std::string& key, const std::string& value);
         int remove(const std::string& key);
+        int begin_transaction(bool read_only = false);
+        int end_transaction();
 
         MDB_dbi mdb_dbi;
         MDB_env* mdb_env;
