@@ -1,3 +1,4 @@
+data
 obj/*
 !obj/README.md
 bin/*
@@ -7,3 +8,4 @@ tmp
 dist
 *.exe
 *.o
+*.mdb
