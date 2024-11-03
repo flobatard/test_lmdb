@@ -1,3 +1,9 @@
-data/*
-!data/README.md
+obj/*
+!obj/README.md
+bin/*
+!bin/README.md
+dist
 tmp
+dist
+*.exe
+*.o
