@@ -44,7 +44,9 @@ LMDBWrapper::LMDBWrapper(const string& dirPath)
     }catch(const std::exception& e){
         std::cerr << "Error on directory creation: " << dirPath << " " << e.what() << endl;
     }
+    std::cout << "Setting up Database env" << endl;
     if (const int rc = mdb_env_create(&mdb_env))
+    std::cout << "MDB ENV Created" << endl;
     if (mdb_env_set_maxdbs(mdb_env, 50))
     {
         std::cerr << "Error Mapsize: " << endl;   
@@ -65,7 +67,7 @@ LMDBWrapper::LMDBWrapper(const string& dirPath)
         std::cerr << "Error creating transaction" << mdb_strerror(rc) << endl;
     }
     
-    if (const int rc = mdb_dbi_open(mdb_transaction, "files", MDB_CREATE, mdb_dbi))
+    if (const int rc = mdb_dbi_open(mdb_transaction, "files", MDB_CREATE, &mdb_dbi))
     {
         std::cerr << "Error opening database: " << mdb_strerror(rc) << endl;
     }
@@ -75,5 +77,8 @@ LMDBWrapper::LMDBWrapper(const string& dirPath)
 
 LMDBWrapper::~LMDBWrapper()
 {
+    mdb_dbi_close(mdb_env, mdb_dbi);
+    mdb_txn_commit(mdb_transaction);
+    mdb_env_close(mdb_env);
     cout << "Destroyed" <<endl;
 }

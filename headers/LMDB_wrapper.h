@@ -13,7 +13,7 @@ class LMDBWrapper
         int put(const std::string& key, const std::string& value);
         int remove(const std::string& key);
 
-        MDB_dbi* mdb_dbi;
+        MDB_dbi mdb_dbi;
         MDB_env* mdb_env;
         MDB_cursor* mdb_cursor;
         MDB_txn* mdb_transaction;
