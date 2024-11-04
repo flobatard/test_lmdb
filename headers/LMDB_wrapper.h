@@ -2,6 +2,7 @@
 #define LMDB_WRAPPER_H
 
 #include <string>
+#include <mutex>
 #include "lmdb.h"
 
 class LMDBWrapper
@@ -14,7 +15,10 @@ class LMDBWrapper
         int remove(const std::string& key);
         int begin_transaction(bool read_only = false);
         int end_transaction();
+        int commit();
+        int abort();
 
+        std::mutex dbi_mtx;
         MDB_dbi mdb_dbi;
         MDB_env* mdb_env;
         MDB_cursor* mdb_cursor;
