@@ -21,7 +21,8 @@ int mass_put(LMDBWrapper& lmdb, int offset, int count = 1000)
     }
     for (int i = offset; i < count + offset; i++)
     {
-        std::string value = lmdb.get("toto_" + std::to_string(i));
+        std::string key = "toto_" + std::to_string(i);
+        std::string value = lmdb.get(key);
         if (!(value == "tata_" + std::to_string(i)))
         {
             std::cerr <<  "Error value PUT is not the same: DB= " << value << " test=" << "tata_" << std::to_string(i) << std::endl; 
@@ -39,7 +40,8 @@ int mass_delete(LMDBWrapper& lmdb, int offset, int count = 1000)
     }
     for (int i = offset; i < count + offset; i++)
     {
-        std::string value = lmdb.get("toto_" + std::to_string(i));
+        std::string key = "toto_" + std::to_string(i);
+        std::string value = lmdb.get(key);
         if (!(value == ""))
         {
             std::cerr <<  "Error value DELETE is not the same: DB= " << value << " test=" << "tata_" << std::to_string(i) << std::endl; 
@@ -53,11 +55,12 @@ int mass_get(LMDBWrapper& lmdb, int offset, int count = 1000)
 {
     for (int i = offset; i < count + offset; i++)
     {
-        std::string value = lmdb.get("toto_" + std::to_string(i));
+        std::string key = "toto_" + std::to_string(i);
+        std::string value = lmdb.get(key);
         if (!(value == "tata_" + std::to_string(i)))
         {
-            std::cerr <<  "Error value GET is not the same: DB= " << value << " test=" << "tata_" << std::to_string(i) << std::endl; 
-            throw "Error value GET is not the same: DB= " + value + " test=" + "tata_" + std::to_string(i);
+            std::cerr <<  "Error value GET is not the same: DB(" << key << ")=" << value << " test=" << "tata_" << std::to_string(i) << std::endl; 
+            throw "Error value GET is not the same: DB(toto_" + std::to_string(i) + ")= " + value + " test=" + "tata_" + std::to_string(i);
         }
     }
     return 0;
@@ -68,8 +71,8 @@ int main()
     std::cout << "__cplusplus: " << __cplusplus;
     std::cout << std::endl;
     LMDBWrapper lmdb = LMDBWrapper("db1");
-    int nb_chunks = 10;
-    int chunk_size = 1000;
+    int nb_chunks = 1000;
+    int chunk_size = 100;
     std::vector<std::thread> workers = std::vector<std::thread>(nb_chunks);
     
 
@@ -77,7 +80,7 @@ int main()
 
     for (int i = 0; i < nb_chunks; i++)
     {
-        workers[i] = std::thread([&](){
+        workers[i] = std::thread([i, &lmdb, chunk_size] (){
             mass_put(lmdb, i*chunk_size, chunk_size);
         });
     }
@@ -96,9 +99,18 @@ int main()
 
     for (int i = 0; i < nb_chunks; i++)
     {
-        
-        mass_get(lmdb, i*chunk_size, chunk_size);
-        
+         workers[i] = std::thread([i, &lmdb, chunk_size] (){
+             mass_get(lmdb, i*chunk_size, chunk_size);
+        });
+       
+    }
+
+    for (int i = 0; i<nb_chunks; i++)
+    {
+        if (workers[i].joinable())
+        {
+            workers[i].join();
+        }
     }
     auto getClock = high_resolution_clock::now();
     
@@ -108,7 +120,7 @@ int main()
 
     for (int i = 0; i<nb_chunks; i++)
     {
-        workers[i] = std::thread([&](){
+        workers[i] = std::thread([i, &lmdb, chunk_size](){
             mass_delete(lmdb, i*chunk_size, chunk_size);
         });;
     }

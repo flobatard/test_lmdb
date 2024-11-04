@@ -20,25 +20,34 @@ using namespace std;
 
 tuple<MDB_dbi, MDB_txn*> LMDBWrapper::begin_transaction(bool read_only)
 {
+    
     MDB_txn* mdb_transaction;
     if(const int rc = mdb_txn_begin(mdb_env, NULL, (read_only ?  MDB_RDONLY : 0), &mdb_transaction)){
         throw runtime_error("Couldn't start LMDB txn mdb_txn_begin() returned " + string(mdb_strerror(rc)));
     }
 
-    MDB_dbi mdb_dbi;
     dbi_mtx.lock();
+    MDB_dbi mdb_dbi;
     if(const int rc = mdb_dbi_open(mdb_transaction, 0, MDB_CREATE, &mdb_dbi))
     {
         throw runtime_error("Couldn't open LMDB zone database  mdb_dbi_open() returned " + string(mdb_strerror(rc)));
     }
     dbi_mtx.unlock();
+   
     tuple<MDB_dbi, MDB_txn*> ret = make_tuple(mdb_dbi, mdb_transaction);
     return ret;
 }
 
 int LMDBWrapper::end_transaction(MDB_txn* mdb_transaction)
 {
-    return mdb_txn_commit(mdb_transaction);
+    const int rc = mdb_txn_commit(mdb_transaction);
+    return rc;
+}
+
+int LMDBWrapper::abort(MDB_txn* mdb_transaction)
+{
+    mdb_txn_abort(mdb_transaction);
+    return 0;
 }
 
 // Méthode pour insérer une paire clé-valeur
@@ -56,7 +65,7 @@ int LMDBWrapper::put(const std::string& key, const std::string& value) {
     if (const int rc = mdb_put(mdb_transaction, mdb_dbi, &mdb_key, &mdb_value, 0))
     {
         std::cerr << "Error putting data: " << mdb_strerror(rc) << std::endl;
-        mdb_txn_abort(mdb_transaction);
+        abort(mdb_transaction);
         throw runtime_error("Couldn't put LMDB zone database  mdb_put() returned " + string(mdb_strerror(rc)));
     }
     end_transaction(mdb_transaction);
@@ -75,10 +84,10 @@ std::string LMDBWrapper::get(const std::string& key) {
 
     int rc = mdb_get(mdb_transaction, mdb_dbi, &mdb_key, &mdb_value);
     if (rc == MDB_NOTFOUND) {
-        mdb_txn_abort(mdb_transaction);
+        abort(mdb_transaction);
         return "";  // Clé non trouvée
     } else if (rc != 0) {
-        mdb_txn_abort(mdb_transaction);
+        abort(mdb_transaction);
         throw runtime_error("Couldn't GET LMDB zone database  mdb_get() returned " + string(mdb_strerror(rc)));
     }
     end_transaction(mdb_transaction);
@@ -99,10 +108,10 @@ int LMDBWrapper::remove(const std::string& key) {
 
     int rc = mdb_del(mdb_transaction, mdb_dbi, &mdb_key, NULL);
     if (rc == MDB_NOTFOUND) {
-        abort();
+        abort(mdb_transaction);
         return rc;
     } else if (rc != 0) {
-        abort();
+        abort(mdb_transaction);
         throw runtime_error("Couldn't DELETE LMDB zone database  mdb_del() returned " + string(mdb_strerror(rc)));
         return rc;
     }

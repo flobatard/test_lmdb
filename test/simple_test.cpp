@@ -67,7 +67,7 @@ int main()
     std::cout << "__cplusplus: " << __cplusplus;
     std::cout << std::endl;
     LMDBWrapper lmdb = LMDBWrapper("db1");
-    int nb_chunks = 10;
+    int nb_chunks = 100;
     int chunk_size = 1000;
 
     auto start = high_resolution_clock::now();

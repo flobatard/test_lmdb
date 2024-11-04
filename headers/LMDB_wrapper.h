@@ -16,6 +16,7 @@ class LMDBWrapper
         int remove(const std::string& key);
         std::tuple<MDB_dbi, MDB_txn*> begin_transaction(bool read_only = false);
         int end_transaction(MDB_txn* mdb_transaction);
+        int abort(MDB_txn* mdb_transaction);
 
         std::mutex dbi_mtx;
         MDB_env* mdb_env;
