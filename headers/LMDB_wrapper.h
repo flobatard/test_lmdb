@@ -3,6 +3,7 @@
 
 #include <string>
 #include <mutex>
+#include <tuple>
 #include "lmdb.h"
 
 class LMDBWrapper
@@ -13,16 +14,12 @@ class LMDBWrapper
         std::string get(const std::string& key);
         int put(const std::string& key, const std::string& value);
         int remove(const std::string& key);
-        int begin_transaction(bool read_only = false);
-        int end_transaction();
-        int commit();
-        int abort();
+        std::tuple<MDB_dbi, MDB_txn*> begin_transaction(bool read_only = false);
+        int end_transaction(MDB_txn* mdb_transaction);
 
         std::mutex dbi_mtx;
-        MDB_dbi mdb_dbi;
         MDB_env* mdb_env;
         MDB_cursor* mdb_cursor;
-        MDB_txn* mdb_transaction;
 
 };
 

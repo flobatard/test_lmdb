@@ -4,6 +4,7 @@
 #include<lmdb.h>
 #include <string>
 #include <filesystem>
+#include <tuple>
 
 
 std::string sep = 
@@ -17,43 +18,35 @@ std::string baseDir = "data";
 
 using namespace std;
 
-int LMDBWrapper::begin_transaction(bool read_only)
+tuple<MDB_dbi, MDB_txn*> LMDBWrapper::begin_transaction(bool read_only)
 {
-    dbi_mtx.lock();
+    MDB_txn* mdb_transaction;
     if(const int rc = mdb_txn_begin(mdb_env, NULL, (read_only ?  MDB_RDONLY : 0), &mdb_transaction)){
         throw runtime_error("Couldn't start LMDB txn mdb_txn_begin() returned " + string(mdb_strerror(rc)));
     }
 
+    MDB_dbi mdb_dbi;
+    dbi_mtx.lock();
     if(const int rc = mdb_dbi_open(mdb_transaction, 0, MDB_CREATE, &mdb_dbi))
     {
         throw runtime_error("Couldn't open LMDB zone database  mdb_dbi_open() returned " + string(mdb_strerror(rc)));
     }
-
-    return 0;
-}
-
-int LMDBWrapper::commit()
-{
-    mdb_txn_commit(mdb_transaction);
     dbi_mtx.unlock();
-    return 0;
+    tuple<MDB_dbi, MDB_txn*> ret = make_tuple(mdb_dbi, mdb_transaction);
+    return ret;
 }
 
-int LMDBWrapper::abort()
+int LMDBWrapper::end_transaction(MDB_txn* mdb_transaction)
 {
-    mdb_txn_abort(mdb_transaction);
-    dbi_mtx.unlock();
-    return 0;
-}
-
-int LMDBWrapper::end_transaction()
-{
-    return commit();
+    return mdb_txn_commit(mdb_transaction);
 }
 
 // Méthode pour insérer une paire clé-valeur
 int LMDBWrapper::put(const std::string& key, const std::string& value) {
-    begin_transaction();
+    MDB_dbi mdb_dbi;
+    MDB_txn* mdb_transaction;
+    std::tie(mdb_dbi, mdb_transaction) = begin_transaction();
+
     MDB_val mdb_key, mdb_value;
     mdb_key.mv_size = key.size();
     mdb_key.mv_data = (void*)key.c_str();
@@ -63,37 +56,42 @@ int LMDBWrapper::put(const std::string& key, const std::string& value) {
     if (const int rc = mdb_put(mdb_transaction, mdb_dbi, &mdb_key, &mdb_value, 0))
     {
         std::cerr << "Error putting data: " << mdb_strerror(rc) << std::endl;
-        abort();
+        mdb_txn_abort(mdb_transaction);
         throw runtime_error("Couldn't put LMDB zone database  mdb_put() returned " + string(mdb_strerror(rc)));
     }
-    end_transaction();
+    end_transaction(mdb_transaction);
     return 0;
 }
 
 // Méthode pour récupérer la valeur associée à une clé
 std::string LMDBWrapper::get(const std::string& key) {
-    begin_transaction();
+    MDB_dbi mdb_dbi;
+    MDB_txn* mdb_transaction;
+    std::tie(mdb_dbi, mdb_transaction) = begin_transaction();
+
     MDB_val mdb_key, mdb_value;
     mdb_key.mv_size = key.size();
     mdb_key.mv_data = (void*)key.c_str();
 
     int rc = mdb_get(mdb_transaction, mdb_dbi, &mdb_key, &mdb_value);
     if (rc == MDB_NOTFOUND) {
-        abort();
+        mdb_txn_abort(mdb_transaction);
         return "";  // Clé non trouvée
     } else if (rc != 0) {
-        abort();
+        mdb_txn_abort(mdb_transaction);
         throw runtime_error("Couldn't GET LMDB zone database  mdb_get() returned " + string(mdb_strerror(rc)));
     }
-
-    end_transaction();
+    end_transaction(mdb_transaction);
     std::string value(static_cast<char*>(mdb_value.mv_data), mdb_value.mv_size);
     return value;
 }
 
 // Méthode pour supprimer une paire clé-valeur
 int LMDBWrapper::remove(const std::string& key) {
-    begin_transaction();
+    MDB_dbi mdb_dbi;
+    MDB_txn* mdb_transaction;
+    std::tie(mdb_dbi, mdb_transaction) = begin_transaction();
+
     MDB_val mdb_key;
     mdb_key.mv_size = key.size();
     mdb_key.mv_data = (void*)key.c_str();
@@ -109,15 +107,13 @@ int LMDBWrapper::remove(const std::string& key) {
         return rc;
     }
 
-    end_transaction();
+    end_transaction(mdb_transaction);
     return 0;
 }
 
 LMDBWrapper::LMDBWrapper(const string& dirPath)
 {
-    
     try{
-        
         if(std::filesystem::create_directory(baseDir + sep + dirPath))
         {
             std::cout << "Created a directory " << dirPath << endl;
@@ -148,8 +144,6 @@ LMDBWrapper::LMDBWrapper(const string& dirPath)
 
 LMDBWrapper::~LMDBWrapper()
 {
-    mdb_dbi_close(mdb_env, mdb_dbi);
-    mdb_txn_commit(mdb_transaction);
     mdb_env_close(mdb_env);
     cout << "Destroyed" <<endl;
 }
