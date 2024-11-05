@@ -6,7 +6,7 @@ SEP=\\
 
 SOURCEDIR=src$(SEP)
 HEADERDIR=headers$(SEP)
-INCLUDESDIR=includes$(SEP)
+INCLUDEDIR=include$(SEP)
 
 OBJ=obj$(SEP)
 BIN=bin$(SEP)
@@ -30,7 +30,7 @@ DEPENDENCIES=liblmdb.a
 
 LIBS=$(DEPENDENCIES:%.a=$(LIB)%.a)
 
-FLAGS= -std=c++23 $(WARNINGS) -I$(HEADERDIR) -I$(INCLUDESDIR) -L$(LIB)  
+FLAGS= -std=c++23 $(WARNINGS) -I$(HEADERDIR) -I$(INCLUDEDIR) -L$(LIB)  
 
 all: $(OBJS) main.o
 	$(CC) $(FLAGS) -o $(BIN)$(NAME).exe -static $(OBJ)main.o $(OBJS:%=$(OBJ)%) $(LIBS)
